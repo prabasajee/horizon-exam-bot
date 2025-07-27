@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Horizon Exam Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --danger-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --card-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            --border-radius: 15px;
+        }
+
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 30px 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease;
+            border-left: 5px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card.primary { border-left-color: #667eea; }
+        .stat-card.success { border-left-color: #4facfe; }
+        .stat-card.warning { border-left-color: #43e97b; }
+        .stat-card.danger { border-left-color: #f5576c; }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            height: 400px;
+        }
+
+        .progress-custom {
+            height: 8px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .icon-stat {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .icon-stat.primary { background: var(--primary-gradient); }
+        .icon-stat.success { background: var(--success-gradient); }
+        .icon-stat.warning { background: var(--warning-gradient); }
+        .icon-stat.danger { background: var(--danger-gradient); }
+
+        .leaderboard-item {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: between;
+        }
+
+        .performance-meter {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1><i class="fas fa-chart-line me-3"></i>Analytics Dashboard</h1>
+                    <p class="mb-0">Comprehensive insights into quiz performance and user engagement</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-light" onclick="exportReport()">
+                        <i class="fas fa-download me-2"></i>Export Report
+                    </button>
+                    <button class="btn btn-outline-light ms-2" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Key Statistics -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card primary">
+                    <div class="icon-stat primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-number" id="totalUsers">1,248</div>
+                    <div class="stat-label">Total Users</div>
+                    <small class="text-success"><i class="fas fa-arrow-up"></i> +12% this month</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card success">
+                    <div class="icon-stat success">
+                        <i class="fas fa-quiz"></i>
+                    </div>
+                    <div class="stat-number" id="totalQuizzes">342</div>
+                    <div class="stat-label">Quizzes Created</div>
+                    <small class="text-success"><i class="fas fa-arrow-up"></i> +8% this month</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card warning">
+                    <div class="icon-stat warning">
+                        <i class="fas fa-play"></i>
+                    </div>
+                    <div class="stat-number" id="totalAttempts">5,729</div>
+                    <div class="stat-label">Quiz Attempts</div>
+                    <small class="text-success"><i class="fas fa-arrow-up"></i> +15% this month</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card danger">
+                    <div class="icon-stat danger">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="stat-number" id="avgScore">78.5%</div>
+                    <div class="stat-label">Average Score</div>
+                    <small class="text-success"><i class="fas fa-arrow-up"></i> +3% this month</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="chart-container">
+                    <h4><i class="fas fa-chart-area me-2"></i>Quiz Activity Over Time</h4>
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h4><i class="fas fa-chart-pie me-2"></i>Score Distribution</h4>
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-trophy me-2"></i>Top Performing Quizzes</h4>
+                    <div id="topQuizzes">
+                        <div class="leaderboard-item">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Advanced Python Programming</h6>
+                                <div class="progress progress-custom">
+                                    <div class="progress-bar bg-success" style="width: 92%"></div>
+                                </div>
+                                <small class="text-muted">92% average score • 156 attempts</small>
+                            </div>
+                            <div class="ms-3">
+                                <span class="badge bg-success">92%</span>
+                            </div>
+                        </div>
+                        <div class="leaderboard-item">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Data Structures & Algorithms</h6>
+                                <div class="progress progress-custom">
+                                    <div class="progress-bar bg-info" style="width: 87%"></div>
+                                </div>
+                                <small class="text-muted">87% average score • 134 attempts</small>
+                            </div>
+                            <div class="ms-3">
+                                <span class="badge bg-info">87%</span>
+                            </div>
+                        </div>
+                        <div class="leaderboard-item">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Machine Learning Basics</h6>
+                                <div class="progress progress-custom">
+                                    <div class="progress-bar bg-warning" style="width: 78%"></div>
+                                </div>
+                                <small class="text-muted">78% average score • 198 attempts</small>
+                            </div>
+                            <div class="ms-3">
+                                <span class="badge bg-warning">78%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-clock me-2"></i>Performance Metrics</h4>
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <div class="performance-meter">
+                                <canvas id="completionRate" width="150" height="150"></canvas>
+                            </div>
+                            <h6 class="mt-2">Completion Rate</h6>
+                            <p class="text-muted">85.2%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="performance-meter">
+                                <canvas id="avgTime" width="150" height="150"></canvas>
+                            </div>
+                            <h6 class="mt-2">Avg. Time</h6>
+                            <p class="text-muted">12.5 min</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h6>Recent Activity</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="fas fa-user-check text-success me-3"></i>
+                                <div>
+                                    <strong>Sarah Chen</strong> completed "React Fundamentals"
+                                    <small class="text-muted d-block">2 minutes ago</small>
+                                </div>
+                            </li>
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="fas fa-plus text-primary me-3"></i>
+                                <div>
+                                    <strong>John Doe</strong> created "Database Design"
+                                    <small class="text-muted d-block">15 minutes ago</small>
+                                </div>
+                            </li>
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="fas fa-trophy text-warning me-3"></i>
+                                <div>
+                                    <strong>Mike Wilson</strong> achieved 100% on "CSS Grid"
+                                    <small class="text-muted d-block">1 hour ago</small>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Tables -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="chart-container">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4><i class="fas fa-table me-2"></i>Detailed Quiz Analytics</h4>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="filterData('today')">Today</button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="filterData('week')">This Week</button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="filterData('month')">This Month</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Quiz Title</th>
+                                    <th>Creator</th>
+                                    <th>Attempts</th>
+                                    <th>Avg Score</th>
+                                    <th>Completion Rate</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analyticsTable">
+                                <!-- Data will be populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            loadAnalyticsData();
+        });
+
+        function initializeCharts() {
+            // Activity Chart
+            const activityCtx = document.getElementById('activityChart').getContext('2d');
+            new Chart(activityCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Quiz Attempts',
+                        data: [450, 520, 680, 590, 750, 820],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Quiz Created',
+                        data: [25, 35, 45, 38, 52, 58],
+                        borderColor: '#4facfe',
+                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+
+            // Score Distribution Chart
+            const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+            new Chart(scoreCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['90-100%', '80-89%', '70-79%', '60-69%', '<60%'],
+                    datasets: [{
+                        data: [25, 35, 25, 10, 5],
+                        backgroundColor: [
+                            '#43e97b',
+                            '#4facfe',
+                            '#f1c40f',
+                            '#e67e22',
+                            '#e74c3c'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Completion Rate Gauge
+            createGaugeChart('completionRate', 85.2, 'Completion Rate');
+            createGaugeChart('avgTime', 62.5, 'Efficiency'); // 12.5/20 * 100
+        }
+
+        function createGaugeChart(canvasId, value, label) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, 100 - value],
+                        backgroundColor: ['#667eea', '#e9ecef'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    circumference: Math.PI,
+                    rotation: Math.PI,
+                    cutout: '80%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                },
+                plugins: [{
+                    afterDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        ctx.save();
+                        const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                        const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2 + 20;
+                        ctx.textAlign = 'center';
+                        ctx.font = 'bold 16px Poppins';
+                        ctx.fillStyle = '#333';
+                        ctx.fillText(value + '%', centerX, centerY);
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        async function loadAnalyticsData() {
+            try {
+                const response = await fetch('/api/analytics/dashboard');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateDashboard(data.analytics);
+                }
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update statistics
+            document.getElementById('totalUsers').textContent = data.totalUsers || '1,248';
+            document.getElementById('totalQuizzes').textContent = data.totalQuizzes || '342';
+            document.getElementById('totalAttempts').textContent = data.totalAttempts || '5,729';
+            document.getElementById('avgScore').textContent = (data.avgScore || 78.5) + '%';
+            
+            // Update analytics table
+            updateAnalyticsTable(data.quizzes || []);
+        }
+
+        function updateAnalyticsTable(quizzes) {
+            const tableBody = document.getElementById('analyticsTable');
+            tableBody.innerHTML = quizzes.map(quiz => `
+                <tr>
+                    <td><strong>${quiz.title}</strong></td>
+                    <td>${quiz.creator}</td>
+                    <td><span class="badge bg-primary">${quiz.attempts}</span></td>
+                    <td>${quiz.avgScore}%</td>
+                    <td>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" style="width: ${quiz.completionRate}%"></div>
+                        </div>
+                        ${quiz.completionRate}%
+                    </td>
+                    <td>${new Date(quiz.created).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewQuizDetails('${quiz.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function exportReport() {
+            // Implement report export functionality
+            alert('Export functionality will be implemented');
+        }
+
+        function refreshData() {
+            loadAnalyticsData();
+        }
+
+        function filterData(period) {
+            // Implement data filtering
+            console.log('Filtering data for:', period);
+        }
+
+        function viewQuizDetails(quizId) {
+            // Navigate to detailed quiz analytics
+            window.location.href = `/analytics/quiz/${quizId}`;
+        }
+    </script>
+</body>
+</html>
