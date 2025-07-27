@@ -12,6 +12,8 @@ from werkzeug.utils import secure_filename
 import PyPDF2
 from docx import Document
 from typing import Dict, List, Any
+import re
+from collections import Counter
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
