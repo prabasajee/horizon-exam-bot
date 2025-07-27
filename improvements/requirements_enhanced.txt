@@ -1,0 +1,84 @@
+# Enhanced Requirements for Horizon Exam Bot v2.0
+
+# Core Flask Dependencies
+Flask==2.3.3
+PyPDF2==3.0.1
+python-docx==0.8.11
+Werkzeug==2.3.7
+Jinja2==3.1.2
+MarkupSafe==2.1.3
+itsdangerous==2.1.2
+click==8.1.7
+blinker==1.6.3
+
+# Database & Authentication
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+Flask-Migrate==4.0.5
+PyJWT==2.8.0
+bcrypt==4.0.1
+
+# AI & NLP Features
+nltk==3.8.1
+textstat==0.7.3
+spacy==3.6.1
+transformers==4.35.0
+torch==2.0.1
+scikit-learn==1.3.0
+
+# Data Analysis & Visualization
+pandas==2.1.0
+matplotlib==3.7.2
+seaborn==0.12.2
+plotly==5.15.0
+numpy==1.24.3
+
+# Performance & Caching
+redis==4.6.0
+celery==5.3.1
+flower==2.0.1
+
+# Real-time Features
+Flask-SocketIO==5.3.6
+python-socketio==5.8.0
+eventlet==0.33.3
+
+# Security
+bleach==6.0.0
+cryptography==41.0.4
+python-decouple==3.8
+
+# API & External Services
+requests==2.31.0
+httpx==0.24.1
+
+# File Processing
+pillow==10.0.0
+openpyxl==3.1.2
+
+# Testing
+pytest==7.4.0
+pytest-flask==1.2.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+
+# Development
+black==23.7.0
+flake8==6.0.0
+pre-commit==3.3.3
+
+# Production
+gunicorn==21.2.0
+psycopg2-binary==2.9.7  # For PostgreSQL in production
+supervisor==4.2.5
+
+# Monitoring & Logging
+sentry-sdk[flask]==1.32.0
+prometheus-flask-exporter==0.23.0
+
+# Email Support
+Flask-Mail==0.9.1
+
+# Background Tasks
+rq==1.15.1
+rq-scheduler==0.13.1
