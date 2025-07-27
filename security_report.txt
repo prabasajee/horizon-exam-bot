@@ -1,0 +1,29 @@
+🔒 SECURITY SCAN REPORT
+==================================================
+Scan completed: 2025-07-27 18:10:58
+Total issues found: 3
+
+📊 SEVERITY BREAKDOWN:
+  ⚠️ HIGH: 1
+  💛 MEDIUM: 2
+
+⚠️ HIGH SEVERITY ISSUES:
+------------------------------
+Category: Dependencies
+Description: Potential vulnerabilities in dependencies
+File: /home/runner/work/horizon-exam-bot/horizon-exam-bot/requirements.txt
+Recommendation: Run 'pip install safety && safety check' for detailed analysis
+
+💛 MEDIUM SEVERITY ISSUES:
+------------------------------
+Category: Input Validation
+Description: Unvalidated JSON input
+File: /home/runner/work/horizon-exam-bot/horizon-exam-bot/app.py
+Line: 66
+Code: data = request.get_json()
+Recommendation: Add proper input validation and sanitization
+
+Category: Session Management
+Description: Session cookies not configured as secure
+File: /home/runner/work/horizon-exam-bot/horizon-exam-bot/test_security.py
+Recommendation: Set SESSION_COOKIE_SECURE=True for HTTPS

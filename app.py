@@ -14,9 +14,16 @@ from docx import Document
 from typing import Dict, List, Any
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Security configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(32))
+app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', '16777216'))  # 16MB default
+
+# Session security
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -24,6 +31,67 @@ os.makedirs('data', exist_ok=True)
 
 # Store for quiz sessions (in production, use a database)
 quiz_sessions = {}
+
+
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Content Security Policy
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "font-src 'self' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
+    response.headers['Content-Security-Policy'] = csp
+    
+    return response
+
+
+app.after_request(add_security_headers)
+
+
+def validate_json_input(required_fields: List[str] = None):
+    """Validate JSON input from request"""
+    if not request.is_json:
+        return None, jsonify({'error': 'Request must be JSON'}), 400
+    
+    try:
+        data = request.get_json()
+        if data is None:
+            return None, jsonify({'error': 'Invalid JSON data'}), 400
+            
+        if required_fields:
+            for field in required_fields:
+                if field not in data:
+                    return None, jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        return data, None, None
+    except Exception as e:
+        app.logger.error(f"JSON validation error: {str(e)}")
+        return None, jsonify({'error': 'Invalid JSON format'}), 400
+
+
+def sanitize_string(text: str, max_length: int = 1000) -> str:
+    """Sanitize string input"""
+    if not isinstance(text, str):
+        return ""
+    
+    # Remove potential XSS characters
+    import html
+    sanitized = html.escape(text.strip())
+    
+    # Limit length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+    
+    return sanitized
 
 
 class DocumentProcessor:
@@ -174,27 +242,47 @@ def upload_file():
     except Exception as e:
         # Ensure we always return JSON, even for unexpected errors
         app.logger.error(f"Upload error: {str(e)}")
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'error': 'Server error occurred during file processing'}), 500
 
 
 @app.route('/api/quiz/create', methods=['POST'])
 def create_quiz():
     """Create a new quiz from questions and answers"""
     try:
-        data = request.get_json()
+        # Validate JSON input
+        data, error_response, status_code = validate_json_input(['title', 'questions'])
+        if error_response:
+            return error_response, status_code
         
-        if not data or 'title' not in data or 'questions' not in data:
-            return jsonify({'error': 'Invalid quiz data'}), 400
+        # Sanitize title
+        data['title'] = sanitize_string(data['title'], 200)
+        if data.get('description'):
+            data['description'] = sanitize_string(data['description'], 500)
         
         # Validate questions format
         questions = data['questions']
         if not isinstance(questions, list) or len(questions) == 0:
             return jsonify({'error': 'At least one question is required'}), 400
         
+        if len(questions) > 50:  # Limit number of questions
+            return jsonify({'error': 'Maximum 50 questions allowed'}), 400
+        
         for i, question in enumerate(questions):
             required_fields = ['question', 'options', 'correct_answer']
             if not all(field in question for field in required_fields):
                 return jsonify({'error': f'Question {i+1} is missing required fields'}), 400
+            
+            # Sanitize question content
+            question['question'] = sanitize_string(question['question'], 500)
+            if question.get('explanation'):
+                question['explanation'] = sanitize_string(question['explanation'], 1000)
+            
+            # Validate options
+            if not isinstance(question['options'], dict):
+                return jsonify({'error': f'Question {i+1} options must be a dictionary'}), 400
+            
+            for key, value in question['options'].items():
+                question['options'][key] = sanitize_string(str(value), 200)
         
         # Save quiz
         quiz_id = QuizManager.save_quiz(data)
@@ -206,7 +294,8 @@ def create_quiz():
         })
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz creation error: {str(e)}")
+        return jsonify({'error': 'Server error occurred while creating quiz'}), 500
 
 
 @app.route('/api/quiz/<quiz_id>', methods=['GET'])
@@ -234,28 +323,48 @@ def get_quiz(quiz_id: str):
     except FileNotFoundError:
         return jsonify({'error': 'Quiz not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz retrieval error: {str(e)}")
+        return jsonify({'error': 'Server error occurred while retrieving quiz'}), 500
 
 
 @app.route('/api/quiz/<quiz_id>/submit', methods=['POST'])
 def submit_quiz(quiz_id: str):
     """Submit quiz answers and get results"""
     try:
-        quiz_data = QuizManager.load_quiz(quiz_id)
-        user_answers = request.get_json()
+        # Validate quiz_id format (should be UUID)
+        try:
+            import uuid
+            uuid.UUID(quiz_id)
+        except ValueError:
+            return jsonify({'error': 'Invalid quiz ID format'}), 400
         
-        if not user_answers or 'answers' not in user_answers:
-            return jsonify({'error': 'No answers provided'}), 400
+        quiz_data = QuizManager.load_quiz(quiz_id)
+        
+        # Validate JSON input
+        data, error_response, status_code = validate_json_input(['answers'])
+        if error_response:
+            return error_response, status_code
+        
+        user_answers = data['answers']
+        if not isinstance(user_answers, dict):
+            return jsonify({'error': 'Answers must be a dictionary'}), 400
+        
+        # Sanitize user info if provided
+        user_info = data.get('user_info', {})
+        if user_info:
+            for key, value in user_info.items():
+                if isinstance(value, str):
+                    user_info[key] = sanitize_string(value, 100)
         
         # Calculate score and feedback
-        results = QuizManager.calculate_score(quiz_data, user_answers['answers'])
+        results = QuizManager.calculate_score(quiz_data, user_answers)
         
         # Store session results
         session_id = str(uuid.uuid4())
         quiz_sessions[session_id] = {
             'quiz_id': quiz_id,
             'results': results,
-            'user_info': user_answers.get('user_info', {})
+            'user_info': user_info
         }
         
         return jsonify({
@@ -267,7 +376,8 @@ def submit_quiz(quiz_id: str):
     except FileNotFoundError:
         return jsonify({'error': 'Quiz not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz submission error: {str(e)}")
+        return jsonify({'error': 'Server error occurred while processing quiz submission'}), 500
 
 
 @app.route('/api/quiz/list', methods=['GET'])
@@ -296,7 +406,8 @@ def list_quizzes():
         return jsonify({'quizzes': quizzes})
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz listing error: {str(e)}")
+        return jsonify({'error': 'Server error occurred while listing quizzes'}), 500
 
 
 @app.route('/api/session/<session_id>/results', methods=['GET'])
@@ -336,4 +447,9 @@ def not_found(error):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Check if we're in development or production
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')  # More secure default
+    port = int(os.environ.get('FLASK_PORT', '5000'))
+    
+    app.run(debug=debug_mode, host=host, port=port)
