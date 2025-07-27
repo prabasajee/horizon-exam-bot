@@ -67,6 +67,270 @@ class DocumentProcessor:
             raise ValueError(f"Unsupported file type: {file_extension}")
 
 
+class NoteGenerator:
+    """Simple note generator that creates study notes from text"""
+    
+    @staticmethod
+    def generate_notes(text: str, style: str = "bullet") -> Dict[str, Any]:
+        """Generate study notes from text"""
+        try:
+            # Clean text
+            cleaned_text = NoteGenerator._clean_text(text)
+            
+            # Extract key information
+            key_points = NoteGenerator._extract_key_points(cleaned_text)
+            definitions = NoteGenerator._extract_definitions(cleaned_text)
+            important_facts = NoteGenerator._extract_important_facts(cleaned_text)
+            summary = NoteGenerator._create_summary(cleaned_text)
+            
+            # Format notes based on style
+            if style == "bullet":
+                formatted_notes = NoteGenerator._format_bullet_notes(key_points, definitions, important_facts)
+            elif style == "numbered":
+                formatted_notes = NoteGenerator._format_numbered_notes(key_points, definitions, important_facts)
+            elif style == "paragraph":
+                formatted_notes = NoteGenerator._format_paragraph_notes(summary, key_points)
+            elif style == "flashcard":
+                formatted_notes = NoteGenerator._format_flashcard_notes(definitions, important_facts)
+            else:
+                formatted_notes = NoteGenerator._format_bullet_notes(key_points, definitions, important_facts)
+            
+            return {
+                'success': True,
+                'notes': formatted_notes,
+                'summary': summary,
+                'key_points_count': len(key_points),
+                'definitions_count': len(definitions),
+                'facts_count': len(important_facts),
+                'original_word_count': len(text.split()),
+                'notes_word_count': len(formatted_notes.split()),
+                'compression_ratio': round(len(formatted_notes.split()) / len(text.split()) * 100, 1) if text.split() else 0
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        """Clean and preprocess text"""
+        # Remove extra whitespace
+        text = re.sub(r'\s+', ' ', text)
+        # Remove special characters but keep basic punctuation
+        text = re.sub(r'[^\w\s\.\,\!\?\;\:\-\(\)]', '', text)
+        return text.strip()
+    
+    @staticmethod
+    def _extract_key_points(text: str) -> List[str]:
+        """Extract key points from text"""
+        sentences = re.split(r'[.!?]+', text)
+        key_points = []
+        
+        key_indicators = [
+            'important', 'key', 'main', 'primary', 'essential', 'crucial',
+            'significant', 'major', 'fundamental', 'basic', 'critical'
+        ]
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if 20 <= len(sentence) <= 150:
+                # Check for key indicators
+                if any(indicator in sentence.lower() for indicator in key_indicators):
+                    key_points.append(NoteGenerator._simplify_sentence(sentence))
+                # Look for sentences with numbers
+                elif re.search(r'\d+', sentence):
+                    key_points.append(NoteGenerator._simplify_sentence(sentence))
+        
+        return key_points[:8]
+    
+    @staticmethod
+    def _extract_definitions(text: str) -> List[Dict[str, str]]:
+        """Extract definitions from text"""
+        sentences = re.split(r'[.!?]+', text)
+        definitions = []
+        
+        definition_patterns = [
+            r'(.+?) is (.+?)$',
+            r'(.+?) are (.+?)$',
+            r'(.+?) means (.+?)$',
+            r'(.+?) refers to (.+?)$'
+        ]
+        
+        for sentence in sentences:
+            if 20 <= len(sentence) <= 200:
+                for pattern in definition_patterns:
+                    match = re.search(pattern, sentence, re.IGNORECASE)
+                    if match:
+                        term = match.group(1).strip()
+                        definition = match.group(2).strip()
+                        
+                        # Clean up term
+                        term = re.sub(r'^(the|a|an)\s+', '', term.lower()).title()
+                        definition = NoteGenerator._simplify_sentence(definition)
+                        
+                        if len(term) < 50 and len(definition) < 150:
+                            definitions.append({
+                                'term': term,
+                                'definition': definition
+                            })
+                        break
+        
+        return definitions[:6]
+    
+    @staticmethod
+    def _extract_important_facts(text: str) -> List[str]:
+        """Extract important facts"""
+        sentences = re.split(r'[.!?]+', text)
+        facts = []
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if 15 <= len(sentence) <= 120:
+                # Look for sentences with numbers
+                if re.search(r'\d+', sentence):
+                    facts.append(NoteGenerator._simplify_sentence(sentence))
+                # Look for cause and effect
+                elif any(word in sentence.lower() for word in ['because', 'due to', 'results in', 'causes']):
+                    facts.append(NoteGenerator._simplify_sentence(sentence))
+        
+        return facts[:5]
+    
+    @staticmethod
+    def _create_summary(text: str) -> str:
+        """Create a brief summary"""
+        sentences = re.split(r'[.!?]+', text)
+        
+        # Get first, middle, and last meaningful sentences
+        meaningful_sentences = [s.strip() for s in sentences if 50 <= len(s.strip()) <= 200]
+        
+        if len(meaningful_sentences) >= 3:
+            selected = [
+                meaningful_sentences[0],
+                meaningful_sentences[len(meaningful_sentences)//2],
+                meaningful_sentences[-1]
+            ]
+        else:
+            selected = meaningful_sentences[:3]
+        
+        return ' '.join([NoteGenerator._simplify_sentence(s) for s in selected])
+    
+    @staticmethod
+    def _simplify_sentence(sentence: str) -> str:
+        """Simplify sentence for easier reading"""
+        replacements = {
+            'utilize': 'use', 'demonstrate': 'show', 'implement': 'put in place',
+            'facilitate': 'help', 'commence': 'start', 'terminate': 'end',
+            'subsequently': 'then', 'furthermore': 'also', 'therefore': 'so',
+            'approximately': 'about', 'sufficient': 'enough', 'numerous': 'many'
+        }
+        
+        words = sentence.split()
+        simplified_words = []
+        
+        for word in words:
+            clean_word = re.sub(r'[^\w]', '', word.lower())
+            if clean_word in replacements:
+                # Preserve capitalization
+                if word[0].isupper():
+                    replacement = replacements[clean_word].capitalize()
+                else:
+                    replacement = replacements[clean_word]
+                # Add back punctuation
+                punct = ''.join([c for c in word if not c.isalnum()])
+                simplified_words.append(replacement + punct)
+            else:
+                simplified_words.append(word)
+        
+        return ' '.join(simplified_words)
+    
+    @staticmethod
+    def _format_bullet_notes(key_points: List[str], definitions: List[Dict], facts: List[str]) -> str:
+        """Format as bullet points"""
+        notes = "📝 **STUDY NOTES**\n\n"
+        
+        if key_points:
+            notes += "🔑 **Key Points:**\n"
+            for point in key_points:
+                notes += f"• {point}\n"
+            notes += "\n"
+        
+        if definitions:
+            notes += "📚 **Important Terms:**\n"
+            for def_item in definitions:
+                notes += f"• **{def_item['term']}**: {def_item['definition']}\n"
+            notes += "\n"
+        
+        if facts:
+            notes += "💡 **Important Facts:**\n"
+            for fact in facts:
+                notes += f"• {fact}\n"
+        
+        return notes
+    
+    @staticmethod
+    def _format_numbered_notes(key_points: List[str], definitions: List[Dict], facts: List[str]) -> str:
+        """Format as numbered list"""
+        notes = "📝 **STUDY NOTES**\n\n"
+        counter = 1
+        
+        if key_points:
+            notes += "🔑 **Key Points:**\n"
+            for point in key_points:
+                notes += f"{counter}. {point}\n"
+                counter += 1
+            notes += "\n"
+        
+        if definitions:
+            notes += "📚 **Important Terms:**\n"
+            for def_item in definitions:
+                notes += f"{counter}. **{def_item['term']}**: {def_item['definition']}\n"
+                counter += 1
+            notes += "\n"
+        
+        if facts:
+            notes += "💡 **Important Facts:**\n"
+            for fact in facts:
+                notes += f"{counter}. {fact}\n"
+                counter += 1
+        
+        return notes
+    
+    @staticmethod
+    def _format_paragraph_notes(summary: str, key_points: List[str]) -> str:
+        """Format as paragraphs"""
+        notes = "📝 **STUDY NOTES**\n\n"
+        notes += "📖 **Summary:**\n"
+        notes += f"{summary}\n\n"
+        
+        if key_points:
+            notes += "🔑 **Main Ideas:**\n"
+            notes += "The key concepts to remember are: " + ", ".join(key_points[:5]) + ".\n\n"
+        
+        return notes
+    
+    @staticmethod
+    def _format_flashcard_notes(definitions: List[Dict], facts: List[str]) -> str:
+        """Format as flashcards"""
+        notes = "🃏 **FLASHCARD NOTES**\n\n"
+        
+        if definitions:
+            notes += "📚 **Term Cards:**\n"
+            for i, def_item in enumerate(definitions, 1):
+                notes += f"**Card {i}:**\n"
+                notes += f"Front: What is {def_item['term']}?\n"
+                notes += f"Back: {def_item['definition']}\n\n"
+        
+        if facts:
+            notes += "💡 **Fact Cards:**\n"
+            for i, fact in enumerate(facts, len(definitions) + 1):
+                notes += f"**Card {i}:**\n"
+                notes += f"Fact: {fact}\n\n"
+        
+        return notes
+
+
 class QuizManager:
     """Manages quiz creation, storage, and scoring"""
     
