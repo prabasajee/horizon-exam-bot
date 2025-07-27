@@ -68,6 +68,26 @@ A Flask-based web application that allows users to upload PDF or DOCX lecture no
 5. **Access the application**
    Open your web browser and navigate to `http://localhost:5000`
 
+## 🚀 Deployment
+
+This project is ready for deployment on multiple platforms! See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+
+### Quick Deploy Options:
+
+- **🐳 Docker**: `docker-compose up --build`
+- **🚂 Railway**: Connect GitHub repo → Auto-deploy
+- **🟣 Heroku**: `git push heroku main`
+- **🎨 Render**: Connect GitHub repo → Auto-deploy
+- **☁️ DigitalOcean**: Connect GitHub repo → Auto-deploy
+
+### Deployment Files Included:
+- `Dockerfile` - Container configuration
+- `docker-compose.yml` - Multi-service setup
+- `Procfile` - Heroku deployment
+- `railway.toml` - Railway configuration
+- `.env.production` - Production environment template
+- `nginx.conf` - Reverse proxy configuration
+
 ## 📁 Project Structure
 
 ```
@@ -216,7 +236,7 @@ The application is designed with modularity in mind:
 Create a `Dockerfile`:
 
 ```dockerfile
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 COPY requirements.txt .
@@ -226,6 +246,17 @@ COPY . .
 
 EXPOSE 5000
 CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
+```
+
+Build and run:
+```bash
+docker build -t horizon-exam-bot .
+docker run -p 5000:5000 horizon-exam-bot
+```
+
+Or use the included `docker-compose.yml`:
+```bash
+docker-compose up --build
 ```
 
 ## 🔄 Future Enhancements
