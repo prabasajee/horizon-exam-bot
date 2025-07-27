@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results - Horizon Exam Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            margin: 0 auto 2rem;
+        }
+        .score-excellent { background: linear-gradient(135deg, #28a745, #20c997); }
+        .score-good { background: linear-gradient(135deg, #17a2b8, #007bff); }
+        .score-average { background: linear-gradient(135deg, #ffc107, #fd7e14); }
+        .score-poor { background: linear-gradient(135deg, #dc3545, #e83e8c); }
+        
+        .result-item {
+            border-left: 4px solid #dee2e6;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .result-item.correct {
+            border-left-color: #28a745;
+            background-color: #f8fff9;
+        }
+        .result-item.incorrect {
+            border-left-color: #dc3545;
+            background-color: #fff8f8;
+        }
+        .answer-badge {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+        }
+        .print-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        @media print {
+            .print-btn, .no-print { display: none !important; }
+            .container { max-width: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+                    <h1>📊 Quiz Results</h1>
+                    <div>
+                        <button class="btn btn-outline-primary me-2" onclick="window.print()">🖨️ Print Results</button>
+                        <a href="/" class="btn btn-primary">🏠 Back to Home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingSection" class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading your results...</p>
+        </div>
+
+        <div id="resultsSection" style="display: none;">
+            <!-- Score Summary -->
+            <div class="row mb-5">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div id="scoreCircle" class="score-circle"></div>
+                            <h2 id="scoreText"></h2>
+                            <p class="text-muted mb-4" id="scoreDescription"></p>
+                            
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="border-end">
+                                        <h4 id="totalQuestions" class="text-primary mb-1"></h4>
+                                        <small class="text-muted">Total Questions</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border-end">
+                                        <h4 id="correctAnswers" class="text-success mb-1"></h4>
+                                        <small class="text-muted">Correct Answers</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border-end">
+                                        <h4 id="incorrectAnswers" class="text-danger mb-1"></h4>
+                                        <small class="text-muted">Incorrect Answers</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <h4 id="timeTaken" class="text-info mb-1"></h4>
+                                    <small class="text-muted">Time Taken</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Information -->
+            <div class="row mb-4" id="studentInfoSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>👤 Student Information</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Name:</strong> <span id="studentName"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Email:</strong> <span id="studentEmail"></span>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <strong>Completed:</strong> <span id="completionTime"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Results -->
+            <div class="row mb-5">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📝 Detailed Review</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="detailedResults">
+                                <!-- Detailed results will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Analysis -->
+            <div class="row mb-5">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📈 Performance Analysis</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="performanceAnalysis">
+                                <!-- Performance analysis will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorSection" style="display: none;" class="alert alert-danger">
+            <h4>❌ Error Loading Results</h4>
+            <p id="errorMessage"></p>
+            <a href="/" class="btn btn-primary">Go Back to Home</a>
+        </div>
+    </div>
+
+    <button class="btn btn-primary print-btn no-print" onclick="window.print()">
+        🖨️ Print
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const sessionId = window.location.pathname.split('/').pop();
+
+        // Load results
+        async function loadResults() {
+            try {
+                const response = await fetch(`/api/session/${sessionId}/results`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayResults(result);
+                } else {
+                    showError(result.error || 'Failed to load results');
+                }
+            } catch (error) {
+                showError(`Network error: ${error.message}`);
+            }
+        }
+
+        // Display results
+        function displayResults(data) {
+            const results = data.results;
+            const userInfo = data.user_info || {};
+
+            // Score circle and summary
+            const scorePercentage = results.score_percentage;
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreText = document.getElementById('scoreText');
+            const scoreDescription = document.getElementById('scoreDescription');
+
+            // Determine score category and styling
+            let scoreClass, description;
+            if (scorePercentage >= 90) {
+                scoreClass = 'score-excellent';
+                description = 'Excellent! Outstanding performance! 🌟';
+            } else if (scorePercentage >= 75) {
+                scoreClass = 'score-good';
+                description = 'Great job! Well done! 👏';
+            } else if (scorePercentage >= 60) {
+                scoreClass = 'score-average';
+                description = 'Good effort! Room for improvement. 📚';
+            } else {
+                scoreClass = 'score-poor';
+                description = 'Keep studying! You can do better! 💪';
+            }
+
+            scoreCircle.className = `score-circle ${scoreClass}`;
+            scoreCircle.textContent = `${scorePercentage}%`;
+            scoreText.textContent = `${results.correct_answers}/${results.total_questions}`;
+            scoreDescription.textContent = description;
+
+            // Summary statistics
+            document.getElementById('totalQuestions').textContent = results.total_questions;
+            document.getElementById('correctAnswers').textContent = results.correct_answers;
+            document.getElementById('incorrectAnswers').textContent = results.total_questions - results.correct_answers;
+            
+            // Time taken
+            if (userInfo.time_taken) {
+                const minutes = Math.floor(userInfo.time_taken / 60000);
+                const seconds = Math.floor((userInfo.time_taken % 60000) / 1000);
+                document.getElementById('timeTaken').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                document.getElementById('timeTaken').textContent = 'N/A';
+            }
+
+            // Student information
+            if (userInfo.name || userInfo.email) {
+                document.getElementById('studentName').textContent = userInfo.name || 'Not provided';
+                document.getElementById('studentEmail').textContent = userInfo.email || 'Not provided';
+                document.getElementById('completionTime').textContent = new Date(results.timestamp).toLocaleString();
+                document.getElementById('studentInfoSection').style.display = 'block';
+            }
+
+            // Detailed results
+            const detailedContainer = document.getElementById('detailedResults');
+            detailedContainer.innerHTML = '';
+
+            results.detailed_results.forEach((item, index) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `result-item card ${item.is_correct ? 'correct' : 'incorrect'}`;
+                
+                resultDiv.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h6 class="mb-0">Question ${index + 1}</h6>
+                            <span class="badge ${item.is_correct ? 'bg-success' : 'bg-danger'} answer-badge">
+                                ${item.is_correct ? '✓ Correct' : '✗ Incorrect'}
+                            </span>
+                        </div>
+                        
+                        <p class="mb-3"><strong>Q:</strong> ${item.question}</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Your Answer:</strong> 
+                                    <span class="badge ${item.is_correct ? 'bg-success' : 'bg-danger'}">${item.your_answer || 'No answer'}</span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Correct Answer:</strong> 
+                                    <span class="badge bg-success">${item.correct_answer}</span>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        ${item.explanation ? `
+                            <div class="mt-3 p-3 bg-light rounded">
+                                <small><strong>💡 Explanation:</strong> ${item.explanation}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                detailedContainer.appendChild(resultDiv);
+            });
+
+            // Performance analysis
+            displayPerformanceAnalysis(results);
+
+            // Show results section
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        // Display performance analysis
+        function displayPerformanceAnalysis(results) {
+            const analysisContainer = document.getElementById('performanceAnalysis');
+            const correctCount = results.correct_answers;
+            const totalCount = results.total_questions;
+            const percentage = results.score_percentage;
+
+            let analysisText = '';
+            let recommendations = [];
+
+            if (percentage >= 90) {
+                analysisText = 'Outstanding performance! You have demonstrated excellent understanding of the material.';
+                recommendations = [
+                    'Consider helping other students with the material',
+                    'Move on to more advanced topics',
+                    'Share your study techniques with others'
+                ];
+            } else if (percentage >= 75) {
+                analysisText = 'Good performance overall with room for minor improvements.';
+                recommendations = [
+                    'Review the questions you got wrong',
+                    'Focus on understanding the explanations provided',
+                    'Consider taking additional practice quizzes'
+                ];
+            } else if (percentage >= 60) {
+                analysisText = 'Satisfactory performance, but significant improvement is needed.';
+                recommendations = [
+                    'Carefully review all incorrect answers',
+                    'Spend more time studying the source material',
+                    'Consider seeking additional help or resources',
+                    'Take the quiz again after more study'
+                ];
+            } else {
+                analysisText = 'Performance indicates a need for substantial additional study.';
+                recommendations = [
+                    'Review the entire source material thoroughly',
+                    'Consider forming a study group',
+                    'Seek help from instructors or tutors',
+                    'Break down the material into smaller, manageable sections',
+                    'Take multiple practice quizzes'
+                ];
+            }
+
+            analysisContainer.innerHTML = `
+                <p class="mb-4">${analysisText}</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h5 class="text-primary">Accuracy Rate</h5>
+                                <h2 class="text-primary">${percentage}%</h2>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <h5 class="text-info">Questions Answered</h5>
+                                <h2 class="text-info">${totalCount}</h2>
+                                <small class="text-muted">${correctCount} correct, ${totalCount - correctCount} incorrect</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6>📚 Recommendations for Improvement:</h6>
+                <ul class="list-group list-group-flush">
+                    ${recommendations.map(rec => `<li class="list-group-item">• ${rec}</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        // Show error
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'block';
+        }
+
+        // Load results on page load
+        loadResults();
+    </script>
+</body>
+</html>

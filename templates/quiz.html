@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Quiz - Horizon Exam Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .question-card {
+            border-left: 4px solid #0d6efd;
+            margin-bottom: 2rem;
+        }
+        .option-label {
+            cursor: pointer;
+            padding: 0.75rem;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .option-label:hover {
+            background-color: #f8f9fa;
+        }
+        .timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        .progress-bar-container {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 999;
+            padding: 1rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar-container">
+        <div class="container">
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar"></div>
+            </div>
+            <small class="text-muted" id="progressText">Question 0 of 0</small>
+        </div>
+    </div>
+
+    <div class="timer" id="timer" style="display: none;">
+        <div class="text-center">
+            <h6 class="mb-1">⏰ Time Elapsed</h6>
+            <span id="timerDisplay">00:00</span>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 id="quizTitle">Loading Quiz...</h1>
+                        <p class="text-muted" id="quizDescription"></p>
+                    </div>
+                    <a href="/" class="btn btn-outline-secondary">← Back to Home</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingSection" class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading quiz questions...</p>
+        </div>
+
+        <div id="quizSection" style="display: none;">
+            <form id="quizForm">
+                <div id="questionsContainer">
+                    <!-- Questions will be loaded here -->
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>📝 Student Information (Optional)</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="studentName" class="form-label">Name</label>
+                                        <input type="text" class="form-control" id="studentName" placeholder="Enter your name">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="studentEmail" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="studentEmail" placeholder="Enter your email">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4 mb-5">
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" style="display: none;"></span>
+                        🎯 Submit Quiz
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="errorSection" style="display: none;" class="alert alert-danger">
+            <h4>❌ Error Loading Quiz</h4>
+            <p id="errorMessage"></p>
+            <a href="/" class="btn btn-primary">Go Back to Home</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const quizId = window.location.pathname.split('/').pop();
+        let quizData = null;
+        let startTime = null;
+        let timerInterval = null;
+
+        // Load quiz data
+        async function loadQuiz() {
+            try {
+                const response = await fetch(`/api/quiz/${quizId}`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    quizData = result;
+                    displayQuiz();
+                    startTimer();
+                } else {
+                    showError(result.error || 'Failed to load quiz');
+                }
+            } catch (error) {
+                showError(`Network error: ${error.message}`);
+            }
+        }
+
+        // Display quiz
+        function displayQuiz() {
+            document.getElementById('quizTitle').textContent = quizData.title;
+            document.getElementById('quizDescription').textContent = quizData.description || '';
+            
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
+
+            quizData.questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question-card card';
+                questionDiv.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">Question ${index + 1}</h5>
+                        <p class="card-text">${question.question}</p>
+                        <div class="options">
+                            ${Object.entries(question.options).map(([key, value]) => `
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="question_${index}" 
+                                           id="q${index}_${key}" value="${key}" required>
+                                    <label class="form-check-label option-label w-100" for="q${index}_${key}">
+                                        <strong>${key}.</strong> ${value}
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(questionDiv);
+            });
+
+            updateProgress();
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('quizSection').style.display = 'block';
+
+            // Add change listeners to update progress
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', updateProgress);
+            });
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const totalQuestions = quizData.questions.length;
+            const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked').length;
+            const progressPercent = (answeredQuestions / totalQuestions) * 100;
+
+            document.getElementById('progressBar').style.width = `${progressPercent}%`;
+            document.getElementById('progressText').textContent = `Question ${answeredQuestions} of ${totalQuestions} answered`;
+        }
+
+        // Start timer
+        function startTimer() {
+            startTime = new Date();
+            document.getElementById('timer').style.display = 'block';
+            
+            timerInterval = setInterval(() => {
+                const elapsed = new Date() - startTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById('timerDisplay').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Submit quiz
+        document.getElementById('quizForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const spinner = submitBtn.querySelector('.spinner-border');
+            
+            // Collect answers
+            const answers = {};
+            quizData.questions.forEach((question, index) => {
+                const selected = document.querySelector(`input[name="question_${index}"]:checked`);
+                if (selected) {
+                    answers[index.toString()] = selected.value;
+                }
+            });
+
+            // Check if all questions are answered
+            if (Object.keys(answers).length !== quizData.questions.length) {
+                alert('Please answer all questions before submitting.');
+                return;
+            }
+
+            // Disable submit button and show spinner
+            submitBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+
+            // Prepare submission data
+            const submissionData = {
+                answers: answers,
+                user_info: {
+                    name: document.getElementById('studentName').value,
+                    email: document.getElementById('studentEmail').value,
+                    time_taken: new Date() - startTime
+                }
+            };
+
+            try {
+                const response = await fetch(`/api/quiz/${quizId}/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(submissionData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Stop timer
+                    clearInterval(timerInterval);
+                    
+                    // Redirect to results page
+                    window.location.href = `/results/${result.session_id}`;
+                } else {
+                    alert(`Error: ${result.error}`);
+                    submitBtn.disabled = false;
+                    spinner.style.display = 'none';
+                }
+            } catch (error) {
+                alert(`Submission failed: ${error.message}`);
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        });
+
+        // Show error
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'block';
+        }
+
+        // Prevent accidental page reload
+        window.addEventListener('beforeunload', function(e) {
+            if (startTime && !document.getElementById('quizSection').style.display === 'none') {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+
+        // Load quiz on page load
+        loadQuiz();
+    </script>
+</body>
+</html>
