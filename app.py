@@ -586,6 +586,12 @@ def results_page(session_id: str):
     return render_template('results.html', session_id=session_id)
 
 
+@app.route('/notes')
+def notes_page():
+    """Render notes listing page"""
+    return render_template('notes.html')
+
+
 @app.errorhandler(413)
 def file_too_large(error):
     return jsonify({'error': 'File too large. Maximum size is 16MB.'}), 413
@@ -599,6 +605,124 @@ def internal_error(error):
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found.'}), 404
+
+
+@app.route('/api/notes/generate', methods=['POST'])
+def generate_notes():
+    """Generate study notes from text"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        style = data.get('style', 'bullet')
+        
+        if not text:
+            return jsonify({'success': False, 'error': 'No text provided'})
+        
+        result = NoteGenerator.generate_notes(text, style)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/notes/save', methods=['POST'])
+def save_notes():
+    """Save generated notes"""
+    try:
+        data = request.get_json()
+        title = data.get('title', '')
+        content = data.get('content', '')
+        source_content = data.get('source_content', '')
+        
+        if not title or not content:
+            return jsonify({'success': False, 'error': 'Title and content are required'})
+        
+        # Save notes to file
+        notes_id = str(uuid.uuid4())
+        notes_data = {
+            'id': notes_id,
+            'title': title,
+            'content': content,
+            'source_content': source_content,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        filename = f"data/notes_{notes_id}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(notes_data, f, indent=2, ensure_ascii=False)
+        
+        return jsonify({
+            'success': True,
+            'notes_id': notes_id,
+            'message': 'Notes saved successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/notes/list', methods=['GET'])
+def list_notes():
+    """List all saved notes"""
+    try:
+        notes = []
+        data_dir = 'data'
+        
+        if os.path.exists(data_dir):
+            for filename in os.listdir(data_dir):
+                if filename.startswith('notes_') and filename.endswith('.json'):
+                    try:
+                        with open(os.path.join(data_dir, filename), 'r', encoding='utf-8') as f:
+                            notes_data = json.load(f)
+                            notes.append({
+                                'id': notes_data['id'],
+                                'title': notes_data['title'],
+                                'created_at': notes_data.get('created_at', ''),
+                                'preview': notes_data['content'][:100] + '...' if len(notes_data['content']) > 100 else notes_data['content']
+                            })
+                    except Exception:
+                        continue
+        
+        return jsonify({'success': True, 'notes': notes})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/notes/styles', methods=['GET'])
+def get_note_styles():
+    """Get available note styles"""
+    styles = [
+        {
+            'id': 'bullet',
+            'name': 'Bullet Points',
+            'description': 'Organized bullet points with key topics',
+            'icon': 'fas fa-list-ul'
+        },
+        {
+            'id': 'numbered',
+            'name': 'Numbered List',
+            'description': 'Sequential numbered points for easy reference',
+            'icon': 'fas fa-list-ol'
+        },
+        {
+            'id': 'paragraph',
+            'name': 'Summary Paragraphs',
+            'description': 'Flowing summary with main ideas',
+            'icon': 'fas fa-align-left'
+        },
+        {
+            'id': 'flashcard',
+            'name': 'Flashcards',
+            'description': 'Question and answer format for studying',
+            'icon': 'fas fa-layer-group'
+        }
+    ]
+    
+    return jsonify({
+        'success': True,
+        'styles': styles
+    })
 
 
 if __name__ == '__main__':
