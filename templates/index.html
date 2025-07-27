@@ -5,65 +5,448 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horizon Exam Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .upload-area {
-            border: 2px dashed #dee2e6;
-            border-radius: 8px;
-            padding: 3rem;
-            text-align: center;
-            transition: border-color 0.3s ease;
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --dark-gradient: linear-gradient(135deg, #434343 0%, #000000 100%);
+            --card-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            --hover-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            --border-radius: 15px;
         }
-        .upload-area:hover {
-            border-color: #0d6efd;
+
+        * {
+            font-family: 'Poppins', sans-serif;
         }
-        .text-preview {
-            max-height: 300px;
-            overflow-y: auto;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 1rem;
-            white-space: pre-wrap;
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
         }
-        .question-form {
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 1.5rem;
+
+        .main-header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 3rem;
+            border-radius: 0 0 50px 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateX(0px) translateY(0px); }
+            50% { transform: translateX(-20px) translateY(-20px); }
+        }
+
+        .main-header h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
             margin-bottom: 1rem;
+            animation: slideInDown 1s ease-out;
         }
+
+        .main-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            animation: slideInUp 1s ease-out;
+        }
+
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .card-header {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .card-header h3 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.4rem;
+        }
+
+        .upload-area {
+            border: 3px dashed #e0e7ff;
+            border-radius: var(--border-radius);
+            padding: 4rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .upload-area:hover::before {
+            left: 100%;
+        }
+
+        .upload-area i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover i {
+            transform: scale(1.2) rotate(10deg);
+        }
+
+        .upload-area p {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .text-preview {
+            max-height: 350px;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+
+        .question-form {
+            background: linear-gradient(135deg, #f8faff 0%, #e8f2ff 100%);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e0e7ff;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .question-form::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+            border-radius: 15px 15px 0 0;
+        }
+
+        .question-form:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            border-radius: 50px;
+            padding: 0.8rem 2rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-success {
+            background: var(--success-gradient);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.6);
+        }
+
+        .btn-outline-primary {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--primary-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        .btn-outline-danger {
+            background: transparent;
+            border: 2px solid #f5576c;
+            color: #f5576c;
+            border-radius: 50px;
+        }
+
+        .btn-outline-danger:hover {
+            background: var(--secondary-gradient);
+            border-color: transparent;
+            color: white;
+        }
+
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            padding: 0.8rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .badge {
+            border-radius: 50px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
         .loading {
             display: none;
+        }
+
+        .quiz-card {
+            transition: all 0.3s ease;
+            border-left: 5px solid transparent;
+        }
+
+        .quiz-card:hover {
+            border-left-color: #667eea;
+            transform: translateX(10px);
+        }
+
+        .icon-wrapper {
+            background: var(--primary-gradient);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .icon-wrapper i {
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: var(--primary-gradient);
+            border-radius: 1px;
+            margin: 3rem 0;
+            width: 100px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .floating-elements {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .floating-elements::before,
+        .floating-elements::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(102, 126, 234, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-elements::before {
+            width: 200px;
+            height: 200px;
+            top: 20%;
+            right: 10%;
+            animation-delay: -2s;
+        }
+
+        .floating-elements::after {
+            width: 150px;
+            height: 150px;
+            bottom: 20%;
+            left: 10%;
+            animation-delay: -4s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Responsive improvements */
+        @media (max-width: 768px) {
+            .main-header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .upload-area {
+                padding: 2rem 1rem;
+            }
+            
+            .question-form {
+                padding: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row">
-            <div class="col-md-12">
-                <h1 class="mb-4 text-center">📚 Horizon Exam Bot</h1>
-                <p class="text-center text-muted mb-5">Upload your lecture notes (PDF or DOCX) and create interactive quizzes!</p>
+    <div class="floating-elements"></div>
+    
+    <!-- Modern Header -->
+    <div class="main-header">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col-md-12">
+                    <div class="icon-wrapper pulse-animation">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <h1>� Horizon Exam Bot</h1>
+                    <p class="lead">Transform your lecture notes into interactive quizzes with AI-powered precision!</p>
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="icon-wrapper">
+                                <i class="fas fa-upload"></i>
+                            </div>
+                            <h6>Upload Documents</h6>
+                            <small>PDF & DOCX Support</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="icon-wrapper">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h6>Smart Extraction</h6>
+                            <small>AI-Powered Text Analysis</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="icon-wrapper">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <h6>Interactive Quizzes</h6>
+                            <small>Instant Results & Analytics</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
+    <div class="container">
         <!-- File Upload Section -->
         <div class="row mb-5">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
-                        <h3>📄 Upload Lecture Notes</h3>
+                        <h3><i class="fas fa-file-upload me-2"></i>Upload Lecture Notes</h3>
                     </div>
                     <div class="card-body">
                         <form id="uploadForm" enctype="multipart/form-data">
                             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                                 <input type="file" id="fileInput" name="file" accept=".pdf,.docx" style="display: none;">
-                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                <p class="mb-0">Click to select a PDF or DOCX file</p>
-                                <small class="text-muted">Maximum file size: 16MB</small>
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p class="mb-2">Drag & Drop or Click to Upload</p>
+                                <small class="text-muted">PDF or DOCX files • Maximum 16MB</small>
                             </div>
-                            <div class="text-center mt-3">
-                                <button type="submit" class="btn btn-primary" disabled id="uploadBtn">
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg" disabled id="uploadBtn">
                                     <span class="loading spinner-border spinner-border-sm me-2" role="status"></span>
-                                    Upload & Extract Text
+                                    <i class="fas fa-magic me-2"></i>Extract Text
                                 </button>
                             </div>
                         </form>
@@ -72,13 +455,15 @@
             </div>
         </div>
 
+        <div class="section-divider"></div>
+
         <!-- Extracted Text Section -->
         <div class="row mb-5" id="extractedTextSection" style="display: none;">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3>📖 Extracted Text</h3>
-                        <span class="badge bg-info" id="textLength"></span>
+                        <h3><i class="fas fa-file-text me-2"></i>Extracted Content</h3>
+                        <span class="badge bg-light text-dark" id="textLength"></span>
                     </div>
                     <div class="card-body">
                         <div class="text-preview" id="extractedText"></div>
@@ -87,23 +472,25 @@
             </div>
         </div>
 
+        <div class="section-divider"></div>
+
         <!-- Quiz Creation Section -->
         <div class="row mb-5" id="quizCreationSection" style="display: none;">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
-                        <h3>❓ Create Quiz Questions</h3>
+                        <h3><i class="fas fa-question-circle me-2"></i>Create Quiz Questions</h3>
                     </div>
                     <div class="card-body">
                         <form id="quizForm">
-                            <div class="row mb-3">
+                            <div class="row mb-4">
                                 <div class="col-md-6">
-                                    <label for="quizTitle" class="form-label">Quiz Title *</label>
-                                    <input type="text" class="form-control" id="quizTitle" required>
+                                    <label for="quizTitle" class="form-label"><i class="fas fa-heading me-1"></i>Quiz Title *</label>
+                                    <input type="text" class="form-control" id="quizTitle" required placeholder="Enter an engaging quiz title">
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="quizDescription" class="form-label">Description</label>
-                                    <input type="text" class="form-control" id="quizDescription" placeholder="Optional description">
+                                    <label for="quizDescription" class="form-label"><i class="fas fa-align-left me-1"></i>Description</label>
+                                    <input type="text" class="form-control" id="quizDescription" placeholder="Brief description of the quiz">
                                 </div>
                             </div>
 
@@ -111,16 +498,16 @@
                                 <!-- Questions will be added here dynamically -->
                             </div>
 
-                            <div class="text-center mb-3">
-                                <button type="button" class="btn btn-outline-primary" onclick="addQuestion()">
-                                    ➕ Add Question
+                            <div class="text-center mb-4">
+                                <button type="button" class="btn btn-outline-primary btn-lg" onclick="addQuestion()">
+                                    <i class="fas fa-plus me-2"></i>Add Question
                                 </button>
                             </div>
 
                             <div class="text-center">
-                                <button type="submit" class="btn btn-success" id="createQuizBtn">
+                                <button type="submit" class="btn btn-success btn-lg" id="createQuizBtn">
                                     <span class="loading spinner-border spinner-border-sm me-2" role="status"></span>
-                                    🎯 Create Quiz
+                                    <i class="fas fa-rocket me-2"></i>Create Amazing Quiz
                                 </button>
                             </div>
                         </form>
@@ -129,23 +516,51 @@
             </div>
         </div>
 
+        <div class="section-divider"></div>
+
         <!-- Available Quizzes Section -->
         <div class="row mb-5">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3>📝 Available Quizzes</h3>
-                        <button class="btn btn-sm btn-outline-primary" onclick="loadQuizList()">🔄 Refresh</button>
+                        <h3><i class="fas fa-list-alt me-2"></i>Available Quizzes</h3>
+                        <button class="btn btn-outline-primary" onclick="loadQuizList()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
                     </div>
                     <div class="card-body">
                         <div id="quizList">
-                            <p class="text-muted text-center">Loading quizzes...</p>
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading available quizzes...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="mt-5 py-4" style="background: var(--dark-gradient); color: white;">
+        <div class="container text-center">
+            <div class="row">
+                <div class="col-md-12">
+                    <h5><i class="fas fa-graduation-cap me-2"></i>Horizon Exam Bot</h5>
+                    <p class="mb-2">Transforming education through intelligent quiz generation</p>
+                    <div>
+                        <i class="fab fa-github me-3"></i>
+                        <i class="fab fa-linkedin me-3"></i>
+                        <i class="fab fa-twitter me-3"></i>
+                    </div>
+                    <hr style="border-color: rgba(255,255,255,0.2);">
+                    <small>&copy; 2025 Horizon Exam Bot. Built with ❤️ for better learning.</small>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -156,13 +571,16 @@
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             const uploadBtn = document.getElementById('uploadBtn');
+            const uploadArea = document.querySelector('.upload-area p');
             
             if (file) {
                 uploadBtn.disabled = false;
-                document.querySelector('.upload-area p').textContent = `Selected: ${file.name}`;
+                uploadArea.innerHTML = `<i class="fas fa-file-alt me-2"></i>Selected: <strong>${file.name}</strong>`;
+                uploadBtn.classList.add('pulse-animation');
             } else {
                 uploadBtn.disabled = true;
-                document.querySelector('.upload-area p').textContent = 'Click to select a PDF or DOCX file';
+                uploadArea.innerHTML = 'Drag & Drop or Click to Upload';
+                uploadBtn.classList.remove('pulse-animation');
             }
         });
 
@@ -233,37 +651,44 @@
             questionDiv.className = 'question-form';
             questionDiv.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5>Question ${questionCount}</h5>
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(this)">✕ Remove</button>
+                    <h5><i class="fas fa-question me-2"></i>Question ${questionCount}</h5>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeQuestion(this)">
+                        <i class="fas fa-trash me-1"></i>Remove
+                    </button>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Question Text *</label>
-                    <textarea class="form-control" name="question_${questionCount}" required rows="2"></textarea>
+                    <label class="form-label"><i class="fas fa-edit me-1"></i>Question Text *</label>
+                    <textarea class="form-control" name="question_${questionCount}" required rows="2" 
+                              placeholder="Enter your question here..."></textarea>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Option A *</label>
-                        <input type="text" class="form-control" name="option_a_${questionCount}" required>
+                        <label class="form-label"><i class="fas fa-circle me-1" style="color: #e74c3c;"></i>Option A *</label>
+                        <input type="text" class="form-control" name="option_a_${questionCount}" required 
+                               placeholder="First option">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Option B *</label>
-                        <input type="text" class="form-control" name="option_b_${questionCount}" required>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Option C *</label>
-                        <input type="text" class="form-control" name="option_c_${questionCount}" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Option D *</label>
-                        <input type="text" class="form-control" name="option_d_${questionCount}" required>
+                        <label class="form-label"><i class="fas fa-circle me-1" style="color: #3498db;"></i>Option B *</label>
+                        <input type="text" class="form-control" name="option_b_${questionCount}" required 
+                               placeholder="Second option">
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Correct Answer *</label>
-                        <select class="form-control" name="correct_${questionCount}" required>
+                        <label class="form-label"><i class="fas fa-circle me-1" style="color: #f39c12;"></i>Option C *</label>
+                        <input type="text" class="form-control" name="option_c_${questionCount}" required 
+                               placeholder="Third option">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><i class="fas fa-circle me-1" style="color: #27ae60;"></i>Option D *</label>
+                        <input type="text" class="form-control" name="option_d_${questionCount}" required 
+                               placeholder="Fourth option">
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label"><i class="fas fa-check-circle me-1" style="color: #27ae60;"></i>Correct Answer *</label>
+                        <select class="form-select" name="correct_${questionCount}" required>
                             <option value="">Select correct answer</option>
                             <option value="A">A</option>
                             <option value="B">B</option>
@@ -272,18 +697,38 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Explanation (Optional)</label>
-                        <input type="text" class="form-control" name="explanation_${questionCount}" placeholder="Why this is the correct answer">
+                        <label class="form-label"><i class="fas fa-lightbulb me-1" style="color: #f1c40f;"></i>Explanation (Optional)</label>
+                        <input type="text" class="form-control" name="explanation_${questionCount}" 
+                               placeholder="Why this is the correct answer">
                     </div>
                 </div>
             `;
             
             container.appendChild(questionDiv);
+            
+            // Add animation
+            setTimeout(() => {
+                questionDiv.style.opacity = '0';
+                questionDiv.style.transform = 'translateY(20px)';
+                questionDiv.style.transition = 'all 0.3s ease';
+                
+                setTimeout(() => {
+                    questionDiv.style.opacity = '1';
+                    questionDiv.style.transform = 'translateY(0)';
+                }, 50);
+            }, 10);
         }
 
         // Remove question function
         function removeQuestion(btn) {
-            btn.closest('.question-form').remove();
+            const questionForm = btn.closest('.question-form');
+            questionForm.style.transition = 'all 0.3s ease';
+            questionForm.style.transform = 'translateX(100%)';
+            questionForm.style.opacity = '0';
+            
+            setTimeout(() => {
+                questionForm.remove();
+            }, 300);
         }
 
         // Quiz form handler
@@ -370,26 +815,61 @@
                 
                 if (result.quizzes && result.quizzes.length > 0) {
                     quizList.innerHTML = result.quizzes.map(quiz => `
-                        <div class="card mb-3">
+                        <div class="card mb-3 quiz-card">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h5 class="card-title">${quiz.title}</h5>
-                                        <p class="card-text text-muted">${quiz.description || 'No description'}</p>
-                                        <small class="text-muted">
-                                            ${quiz.question_count} questions • Created: ${new Date(quiz.created_at).toLocaleDateString()}
-                                        </small>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="icon-wrapper me-3" style="width: 50px; height: 50px;">
+                                                <i class="fas fa-quiz"></i>
+                                            </div>
+                                            <div>
+                                                <h5 class="card-title mb-1">${quiz.title}</h5>
+                                                <p class="card-text text-muted mb-1">${quiz.description || 'No description available'}</p>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-primary me-2">
+                                                <i class="fas fa-question-circle me-1"></i>${quiz.question_count} Questions
+                                            </span>
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar-alt me-1"></i>Created: ${new Date(quiz.created_at).toLocaleDateString()}
+                                            </small>
+                                        </div>
                                     </div>
-                                    <a href="/quiz/${quiz.id}" class="btn btn-primary">Take Quiz</a>
+                                    <div class="ms-3">
+                                        <a href="/quiz/${quiz.id}" class="btn btn-primary">
+                                            <i class="fas fa-play me-2"></i>Take Quiz
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    quizList.innerHTML = '<p class="text-muted text-center">No quizzes available yet. Create your first quiz!</p>';
+                    quizList.innerHTML = `
+                        <div class="text-center py-5">
+                            <div class="icon-wrapper mx-auto mb-3">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <h5>No quizzes available yet</h5>
+                            <p class="text-muted">Upload a document and create your first quiz to get started!</p>
+                        </div>
+                    `;
                 }
             } catch (error) {
-                document.getElementById('quizList').innerHTML = '<p class="text-danger text-center">Failed to load quizzes</p>';
+                document.getElementById('quizList').innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="icon-wrapper mx-auto mb-3" style="background: var(--secondary-gradient);">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h6 class="text-danger">Failed to load quizzes</h6>
+                        <p class="text-muted">Please check your connection and try again.</p>
+                        <button class="btn btn-outline-primary" onclick="loadQuizList()">
+                            <i class="fas fa-redo me-1"></i>Retry
+                        </button>
+                    </div>
+                `;
             }
         }
 
