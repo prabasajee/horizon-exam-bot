@@ -560,50 +560,6 @@
 
         <div class="section-divider"></div>
 
-        <!-- Quiz Creation Section -->
-        <div class="row mb-5" id="quizCreationSection" style="display: none;">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h3><i class="fas fa-question-circle me-2"></i>Create Quiz Questions</h3>
-                    </div>
-                    <div class="card-body">
-                        <form id="quizForm">
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <label for="quizTitle" class="form-label"><i class="fas fa-heading me-1"></i>Quiz Title *</label>
-                                    <input type="text" class="form-control" id="quizTitle" required placeholder="Enter an engaging quiz title">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="quizDescription" class="form-label"><i class="fas fa-align-left me-1"></i>Description</label>
-                                    <input type="text" class="form-control" id="quizDescription" placeholder="Brief description of the quiz">
-                                </div>
-                            </div>
-
-                            <div id="questionsContainer">
-                                <!-- Questions will be added here dynamically -->
-                            </div>
-
-                            <div class="text-center mb-4">
-                                <button type="button" class="btn btn-outline-primary btn-lg" onclick="addQuestion()">
-                                    <i class="fas fa-plus me-2"></i>Add Question
-                                </button>
-                            </div>
-
-                            <div class="text-center">
-                                <button type="submit" class="btn btn-success btn-lg" id="createQuizBtn">
-                                    <span class="loading spinner-border spinner-border-sm me-2" role="status"></span>
-                                    <i class="fas fa-rocket me-2"></i>Create Amazing Quiz
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-divider"></div>
-
         <!-- Available Quizzes Section -->
         <div class="row mb-5">
             <div class="col-md-12">
@@ -719,7 +675,6 @@
                     document.getElementById('textLength').textContent = `${result.text_length} characters`;
                     document.getElementById('extractedTextSection').style.display = 'block';
                     document.getElementById('noteGenerationSection').style.display = 'block';
-                    document.getElementById('quizCreationSection').style.display = 'block';
                     
                     // Auto-generate note title from filename
                     const fileName = fileInput.files[0].name.replace(/\.[^/.]+$/, "");
