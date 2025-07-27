@@ -191,6 +191,17 @@
                     body: formData
                 });
 
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || `Server error: ${response.status}`);
+                    } catch (parseError) {
+                        throw new Error(`Server error: ${response.status} - ${errorText}`);
+                    }
+                }
+
                 const result = await response.json();
 
                 if (result.success) {

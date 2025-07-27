@@ -1,0 +1,23 @@
+This is a test document for Horizon Exam Bot.
+It contains sample text that can be used to create quiz questions.
+
+Main topics covered:
+1. Introduction to Web Development
+2. Flask Framework Basics
+3. File Upload and Processing
+4. Database Operations
+5. User Interface Design
+
+Key concepts:
+- HTTP methods (GET, POST, PUT, DELETE)
+- RESTful API design principles
+- File handling and validation
+- Error handling and logging
+- Security best practices
+
+Sample questions could be created about:
+- What are the main HTTP methods?
+- How do you handle file uploads in Flask?
+- What is REST and why is it important?
+- How do you validate user input?
+- What are some security considerations for web applications?

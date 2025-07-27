@@ -141,17 +141,17 @@ def index():
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     """Handle file upload and text extraction"""
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'Invalid file type. Only PDF and DOCX files are allowed'}), 400
-    
     try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type. Only PDF and DOCX files are allowed'}), 400
+        
         # Save uploaded file
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -172,7 +172,9 @@ def upload_file():
         })
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        # Ensure we always return JSON, even for unexpected errors
+        app.logger.error(f"Upload error: {str(e)}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
 @app.route('/api/quiz/create', methods=['POST'])
@@ -321,6 +323,16 @@ def results_page(session_id: str):
 @app.errorhandler(413)
 def file_too_large(error):
     return jsonify({'error': 'File too large. Maximum size is 16MB.'}), 413
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error. Please try again.'}), 500
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint not found.'}), 404
 
 
 if __name__ == '__main__':
