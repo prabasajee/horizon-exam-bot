@@ -14,11 +14,27 @@ from docx import Document
 from typing import Dict, List, Any
 import re
 from collections import Counter
+import html
+import secrets
+from security_config import (
+    SecurityConfig, InputValidator, SecurityLogger, 
+    rate_limit, validate_input, security_logger
+)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+
+# Security: Use environment variable for secret key or generate secure random key
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.urandom(24).hex()
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Security headers
+@app.after_request
+def set_security_headers(response):
+    """Add security headers to all responses"""
+    for header, value in SecurityConfig.SECURITY_HEADERS.items():
+        response.headers[header] = value
+    return response
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -394,8 +410,28 @@ class QuizManager:
 
 def allowed_file(filename: str) -> bool:
     """Check if file extension is allowed"""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'pdf', 'docx'}
+    if not filename:
+        return False
+    
+    # Use InputValidator for comprehensive validation
+    validation_result = InputValidator.validate_filename(filename)
+    return validation_result['valid']
+
+def validate_file_content(file_path: str, expected_extension: str) -> bool:
+    """Validate file content matches expected type"""
+    try:
+        if expected_extension.lower() == '.pdf':
+            # Try to read PDF to validate it's actually a PDF
+            with open(file_path, 'rb') as f:
+                pdf_reader = PyPDF2.PdfReader(f)
+                # Just try to access pages to validate format
+                len(pdf_reader.pages)
+        elif expected_extension.lower() == '.docx':
+            # Try to read DOCX to validate format
+            Document(file_path)
+        return True
+    except Exception:
+        return False
 
 
 @app.route('/')
@@ -405,6 +441,7 @@ def index():
 
 
 @app.route('/api/upload', methods=['POST'])
+@rate_limit(limit=10, window=3600)  # 10 uploads per hour
 def upload_file():
     """Handle file upload and text extraction"""
     try:
@@ -415,55 +452,133 @@ def upload_file():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        if not allowed_file(file.filename):
-            return jsonify({'error': 'Invalid file type. Only PDF and DOCX files are allowed'}), 400
+        # Validate filename
+        filename_validation = InputValidator.validate_filename(file.filename)
+        if not filename_validation['valid']:
+            security_logger.log_validation_error(
+                'File upload',
+                f"Invalid filename: {filename_validation['error']}",
+                request.remote_addr
+            )
+            return jsonify({'error': filename_validation['error']}), 400
+        
+        # Additional security checks
+        original_filename = file.filename
+        
+        # Generate secure filename
+        filename = secure_filename(original_filename)
+        if not filename:  # secure_filename might return empty string for malicious filenames
+            filename = f"upload_{secrets.token_hex(8)}.{original_filename.rsplit('.', 1)[1].lower()}"
+        
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # Check file size before saving
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        if file_size > SecurityConfig.MAX_FILE_SIZE:
+            return jsonify({'error': 'File too large. Maximum size is 16MB.'}), 413
+        
+        if file_size == 0:
+            return jsonify({'error': 'Empty file not allowed'}), 400
+        
+        # Log file upload
+        security_logger.log_file_upload(original_filename, file_size, request.remote_addr)
         
         # Save uploaded file
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         
-        # Extract text
+        # Validate file content
         file_extension = os.path.splitext(filename)[1]
+        if not validate_file_content(file_path, file_extension):
+            os.remove(file_path)  # Clean up invalid file
+            security_logger.log_validation_error(
+                'File content validation',
+                f"Invalid file format for {original_filename}",
+                request.remote_addr
+            )
+            return jsonify({'error': 'Invalid file format or corrupted file'}), 400
+        
+        # Extract text
         extracted_text = DocumentProcessor.extract_text(file_path, file_extension)
+        
+        # Sanitize extracted text
+        extracted_text = InputValidator.sanitize_text(extracted_text, max_length=SecurityConfig.MAX_TEXT_LENGTH)
         
         # Clean up uploaded file
         os.remove(file_path)
         
         return jsonify({
             'success': True,
-            'filename': filename,
+            'filename': InputValidator.sanitize_text(original_filename, max_length=SecurityConfig.MAX_FILENAME_LENGTH),
             'extracted_text': extracted_text,
             'text_length': len(extracted_text)
         })
     
     except Exception as e:
-        # Ensure we always return JSON, even for unexpected errors
+        # Ensure uploaded file is cleaned up on error
+        if 'file_path' in locals() and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        
+        # Log error securely (don't expose internal details)
         app.logger.error(f"Upload error: {str(e)}")
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'error': 'Server error occurred during file processing'}), 500
 
 
 @app.route('/api/quiz/create', methods=['POST'])
+@rate_limit(limit=20, window=3600)  # 20 quiz creations per hour
+@validate_input({'required_fields': ['title', 'questions'], 'max_fields': 10})
 def create_quiz():
     """Create a new quiz from questions and answers"""
     try:
         data = request.get_json()
         
-        if not data or 'title' not in data or 'questions' not in data:
-            return jsonify({'error': 'Invalid quiz data'}), 400
+        # Validate quiz data structure and content
+        validation_result = InputValidator.validate_quiz_data(data)
+        if not validation_result['valid']:
+            security_logger.log_validation_error(
+                'Quiz creation',
+                f"Validation errors: {validation_result['errors']}",
+                request.remote_addr
+            )
+            return jsonify({'error': validation_result['errors'][0]}), 400
         
-        # Validate questions format
-        questions = data['questions']
-        if not isinstance(questions, list) or len(questions) == 0:
-            return jsonify({'error': 'At least one question is required'}), 400
+        # Sanitize title and description
+        title = InputValidator.sanitize_text(data['title'], max_length=SecurityConfig.MAX_TITLE_LENGTH)
+        description = InputValidator.sanitize_text(data.get('description', ''), max_length=SecurityConfig.MAX_DESCRIPTION_LENGTH)
         
-        for i, question in enumerate(questions):
-            required_fields = ['question', 'options', 'correct_answer']
-            if not all(field in question for field in required_fields):
-                return jsonify({'error': f'Question {i+1} is missing required fields'}), 400
+        # Sanitize questions
+        sanitized_questions = []
+        for question in data['questions']:
+            sanitized_question = {
+                'question': InputValidator.sanitize_text(question['question'], max_length=SecurityConfig.MAX_QUESTION_LENGTH),
+                'correct_answer': InputValidator.sanitize_text(question['correct_answer'], max_length=SecurityConfig.MAX_OPTION_LENGTH),
+                'explanation': InputValidator.sanitize_text(question.get('explanation', ''), max_length=SecurityConfig.MAX_DESCRIPTION_LENGTH)
+            }
+            
+            # Sanitize options
+            sanitized_options = []
+            for option in question['options']:
+                sanitized_option = InputValidator.sanitize_text(str(option), max_length=SecurityConfig.MAX_OPTION_LENGTH)
+                if sanitized_option:
+                    sanitized_options.append(sanitized_option)
+            
+            sanitized_question['options'] = sanitized_options
+            sanitized_questions.append(sanitized_question)
+        
+        # Create sanitized quiz data
+        quiz_data = {
+            'title': title,
+            'description': description,
+            'questions': sanitized_questions
+        }
         
         # Save quiz
-        quiz_id = QuizManager.save_quiz(data)
+        quiz_id = QuizManager.save_quiz(quiz_data)
         
         return jsonify({
             'success': True,
@@ -472,7 +587,8 @@ def create_quiz():
         })
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz creation error: {str(e)}")
+        return jsonify({'error': 'Failed to create quiz'}), 500
 
 
 @app.route('/api/quiz/<quiz_id>', methods=['GET'])
@@ -498,9 +614,10 @@ def get_quiz(quiz_id: str):
         return jsonify(quiz_for_user)
     
     except FileNotFoundError:
-        return jsonify({'error': 'Quiz not found'}), 404
+        return jsonify({'error': 'Resource not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz retrieval error: {str(e)}")
+        return jsonify({'error': 'Server error occurred'}), 500
 
 
 @app.route('/api/quiz/<quiz_id>/submit', methods=['POST'])
@@ -531,9 +648,10 @@ def submit_quiz(quiz_id: str):
         })
     
     except FileNotFoundError:
-        return jsonify({'error': 'Quiz not found'}), 404
+        return jsonify({'error': 'Resource not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Quiz submission error: {str(e)}")
+        return jsonify({'error': 'Server error occurred'}), 500
 
 
 @app.route('/api/quiz/list', methods=['GET'])
@@ -608,31 +726,51 @@ def not_found(error):
 
 
 @app.route('/api/notes/generate', methods=['POST'])
+@rate_limit(limit=30, window=3600)  # 30 note generations per hour
 def generate_notes():
     """Generate study notes from text"""
     try:
         data = request.get_json()
-        text = data.get('text', '')
-        style = data.get('style', 'bullet')
         
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'})
+        
+        # Validate and sanitize input
+        text = InputValidator.sanitize_text(data.get('text', ''), max_length=SecurityConfig.MAX_TEXT_LENGTH)
         if not text:
-            return jsonify({'success': False, 'error': 'No text provided'})
+            return jsonify({'success': False, 'error': 'No valid text provided'})
+        
+        if len(text) < SecurityConfig.MIN_TEXT_LENGTH_FOR_NOTES:
+            return jsonify({'success': False, 'error': f'Text too short (minimum {SecurityConfig.MIN_TEXT_LENGTH_FOR_NOTES} characters)'})
+        
+        # Validate style parameter
+        allowed_styles = {'bullet', 'numbered', 'paragraph', 'flashcard'}
+        style = data.get('style', 'bullet')
+        if style not in allowed_styles:
+            style = 'bullet'
         
         result = NoteGenerator.generate_notes(text, style)
         return jsonify(result)
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Notes generation error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to generate notes'}), 500
 
 
 @app.route('/api/notes/save', methods=['POST'])
+@rate_limit(limit=50, window=3600)  # 50 note saves per hour
 def save_notes():
     """Save generated notes"""
     try:
         data = request.get_json()
-        title = data.get('title', '')
-        content = data.get('content', '')
-        source_content = data.get('source_content', '')
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'})
+        
+        # Validate and sanitize input
+        title = InputValidator.sanitize_text(data.get('title', ''), max_length=SecurityConfig.MAX_TITLE_LENGTH)
+        content = InputValidator.sanitize_text(data.get('content', ''), max_length=SecurityConfig.MAX_TEXT_LENGTH)
+        source_content = InputValidator.sanitize_text(data.get('source_content', ''), max_length=SecurityConfig.MAX_TEXT_LENGTH)
         
         if not title or not content:
             return jsonify({'success': False, 'error': 'Title and content are required'})
@@ -658,7 +796,8 @@ def save_notes():
         })
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Notes save error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to save notes'}), 500
 
 
 @app.route('/api/notes/list', methods=['GET'])
